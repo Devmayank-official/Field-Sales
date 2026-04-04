@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Field Sales App"
+version = "1.0.0"
+id = "artifacts/field-sales"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24630
+
+[services.development]
+run = "pnpm --filter @workspace/field-sales run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/field-sales", "run", "build" ]
+publicDir = "artifacts/field-sales/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24630"
+BASE_PATH = "/"
