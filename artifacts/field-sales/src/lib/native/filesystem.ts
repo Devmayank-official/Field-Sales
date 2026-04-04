@@ -2,6 +2,10 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && (err.name === "AbortError" || err.name === "NotAllowedError");
+}
+
 export async function saveAndShare(
   content: string,
   filename: string,
@@ -17,7 +21,12 @@ export async function saveAndShare(
     directory: Directory.Cache,
     encoding: Encoding.UTF8,
   });
-  await Share.share({ title: filename, url: result.uri });
+  try {
+    await Share.share({ title: filename, url: result.uri });
+  } catch (err) {
+    if (isAbortError(err)) return;
+    throw err;
+  }
 }
 
 function _downloadBlob(content: string, filename: string, mime: string) {

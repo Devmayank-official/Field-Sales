@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,9 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Download, Upload, RefreshCw, Trash2, Database, UserCircle, Moon,
   Edit2, Check, X, FileJson, FileSpreadsheet, Lock, LockOpen, Fingerprint, ShieldCheck,
+  Bug, ChevronDown, ChevronUp, Copy, Cpu,
 } from "lucide-react";
+import { copyToClipboard } from "@/lib/native/clipboard";
 import { hashPin, setupBiometric, isBiometricAvailable } from "@/lib/native/biometric";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -62,23 +64,43 @@ function visitsToCsv(visits: Visit[]): string {
 }
 
 function parseCsv(text: string): Record<string, string>[] {
-  const lines = text.trim().split("\n");
+  const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
   const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
-  return lines.slice(1).map(line => {
+  return lines.slice(1).filter(l => l.trim()).map(line => {
     const values: string[] = [];
     let cur = "";
     let inQuotes = false;
-    for (const ch of line) {
-      if (ch === '"') { inQuotes = !inQuotes; }
-      else if (ch === "," && !inQuotes) { values.push(cur); cur = ""; }
-      else { cur += ch; }
+    let i = 0;
+    while (i < line.length) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"'; i += 2; continue; // escaped double-quote ""
+        }
+        inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) {
+        values.push(cur); cur = "";
+      } else {
+        cur += ch;
+      }
+      i++;
     }
     values.push(cur);
     const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
+    headers.forEach((h, idx) => { row[h] = values[idx] ?? ""; });
     return row;
   });
+}
+
+function toNum(v: string): number | undefined {
+  if (v === "" || v === undefined) return undefined;
+  const n = Number(v);
+  return isNaN(n) ? undefined : n;
+}
+
+function toBool(v: string): boolean {
+  return v === "true" || v === "1";
 }
 
 function downloadBlob(content: string, filename: string, mime: string) {
@@ -113,6 +135,12 @@ export default function Settings() {
   const [csvFiles, setCsvFiles] = useState<{ clients?: File; assets?: File; visits?: File }>({});
   const [csvImportConfirmOpen, setCsvImportConfirmOpen] = useState(false);
 
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [nukeConfirmOpen, setNukeConfirmOpen] = useState(false);
+  const [dbStats, setDbStats] = useState<{
+    clients: number; fridges: number; visits: number; images: number; reminders: number;
+  } | null>(null);
+
   const [lockSetupOpen, setLockSetupOpen] = useState(false);
   const [disableLockConfirm, setDisableLockConfirm] = useState(false);
   const [pinStep, setPinStep] = useState<"enter" | "confirm">("enter");
@@ -126,6 +154,38 @@ export default function Settings() {
   useState(() => {
     isBiometricAvailable().then(setBioAvailable);
   });
+
+  useEffect(() => {
+    if (isProduction) return;
+    const load = async () => {
+      const [c, f, v, img, r] = await Promise.all([
+        db.clients.count(), db.fridges.count(), db.visits.count(),
+        db.images.count(), db.reminders.count(),
+      ]);
+      setDbStats({ clients: c, fridges: f, visits: v, images: img, reminders: r });
+    };
+    load();
+  }, [isProduction]);
+
+  const copyDebugInfo = async () => {
+    const info = {
+      buildMode: import.meta.env.MODE,
+      baseUrl: import.meta.env.BASE_URL,
+      platform: Capacitor.getPlatform(),
+      isNative: Capacitor.isNativePlatform(),
+      dbStats,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+    };
+    await copyToClipboard(JSON.stringify(info, null, 2));
+    toast({ title: "Debug info copied" });
+  };
+
+  const nukeIndexedDb = () => {
+    indexedDB.deleteDatabase("FieldSalesDB");
+    toast({ title: "Database nuked — reloading..." });
+    setTimeout(() => window.location.reload(), 1200);
+  };
 
   const openLockSetup = () => {
     setPinStep("enter");
@@ -282,19 +342,37 @@ export default function Settings() {
           const records = rows.map(r => ({
             ...r,
             tags: r.tags ? r.tags.split("|").filter(Boolean) : [],
-            monthlyValueEstimate: r.monthlyValueEstimate ? Number(r.monthlyValueEstimate) : undefined,
+            isArchived: toBool(r.isArchived),
+            visitFrequency: toNum(r.visitFrequency),
+            monthlyValueEstimate: toNum(r.monthlyValueEstimate),
+            lastVisitAt: toNum(r.lastVisitAt),
+            createdAt: toNum(r.createdAt) ?? Date.now(),
+            updatedAt: toNum(r.updatedAt) ?? Date.now(),
           }));
           await db.clients.bulkPut(records as unknown as Client[]);
         }
         if (csvFiles.assets) {
           const rows = parseCsv(await csvFiles.assets.text());
-          await db.fridges.bulkPut(rows as unknown as Fridge[]);
+          const records = rows.map(r => ({
+            ...r,
+            installationDate: toNum(r.installationDate),
+            lastCheckedAt: toNum(r.lastCheckedAt),
+            createdAt: toNum(r.createdAt) ?? Date.now(),
+            updatedAt: toNum(r.updatedAt) ?? Date.now(),
+          }));
+          await db.fridges.bulkPut(records as unknown as Fridge[]);
         }
         if (csvFiles.visits) {
           const rows = parseCsv(await csvFiles.visits.text());
           const records = rows.map(r => ({
             ...r,
             fridgesChecked: r.fridgesChecked ? r.fridgesChecked.split("|").filter(Boolean) : [],
+            startedAt: toNum(r.startedAt) ?? Date.now(),
+            endedAt: toNum(r.endedAt),
+            locationLat: toNum(r.locationLat),
+            locationLng: toNum(r.locationLng),
+            createdAt: toNum(r.createdAt) ?? Date.now(),
+            updatedAt: toNum(r.updatedAt) ?? Date.now(),
           }));
           await db.visits.bulkPut(records as unknown as Visit[]);
         }
@@ -506,6 +584,113 @@ export default function Settings() {
         </Card>
       </div>
 
+      {/* ── DEBUG PANEL — DEV only ──────────────────────── */}
+      {!isProduction && (
+        <div className="space-y-3">
+          <button
+            onClick={() => setDebugOpen(p => !p)}
+            className="w-full flex items-center justify-between"
+          >
+            <h3 className="font-bold flex items-center gap-2 text-amber-500">
+              <Bug className="w-4 h-4" /> Developer Tools
+            </h3>
+            {debugOpen
+              ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </button>
+
+          {debugOpen && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="p-0 divide-y divide-border">
+
+                {/* DB Stats */}
+                <div className="p-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5" /> IndexedDB Record Counts
+                  </p>
+                  {dbStats ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: "Clients", val: dbStats.clients },
+                        { label: "Fridges", val: dbStats.fridges },
+                        { label: "Visits", val: dbStats.visits },
+                        { label: "Images", val: dbStats.images },
+                        { label: "Reminders", val: dbStats.reminders },
+                      ].map(({ label, val }) => (
+                        <div key={label} className="bg-card rounded-lg p-2.5 text-center border border-border">
+                          <p className="text-lg font-bold">{val}</p>
+                          <p className="text-[10px] text-muted-foreground">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  )}
+                </div>
+
+                {/* Platform Info */}
+                <div className="p-4 space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5" /> Build & Platform
+                  </p>
+                  {[
+                    { label: "Build Mode", val: import.meta.env.MODE },
+                    { label: "Base URL", val: import.meta.env.BASE_URL || "/" },
+                    { label: "Platform", val: Capacitor.getPlatform() },
+                    { label: "Native", val: Capacitor.isNativePlatform() ? "Yes" : "No (Web)" },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-mono bg-muted px-2 py-0.5 rounded text-foreground">{val}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <button
+                  onClick={copyDebugInfo}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
+                >
+                  <div className="p-2 rounded-lg bg-muted text-muted-foreground">
+                    <Copy className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Copy Debug Info</p>
+                    <p className="text-xs text-muted-foreground">JSON snapshot of build, platform & DB stats</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
+                >
+                  <div className="p-2 rounded-lg bg-muted text-muted-foreground">
+                    <RefreshCw className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Force Page Reload</p>
+                    <p className="text-xs text-muted-foreground">Hard refresh without clearing data</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setNukeConfirmOpen(true)}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-destructive/10 transition-colors text-left group"
+                >
+                  <div className="p-2 rounded-lg bg-destructive/10 text-destructive group-hover:bg-destructive group-hover:text-white transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-destructive">Nuke IndexedDB</p>
+                    <p className="text-xs text-muted-foreground">Deletes the entire database file. Harder reset than Wipe.</p>
+                  </div>
+                </button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       <p className="text-center text-xs text-muted-foreground pt-4 pb-4">
         Field Sales App · v1.0.0
         <br />
@@ -702,6 +887,18 @@ export default function Settings() {
         description="Records from the selected CSV files will be merged into your local database. Duplicate IDs will be overwritten."
         confirmLabel="Import"
         onConfirm={doImportCsv}
+      />
+
+      {/* ── NUKE INDEXEDDB CONFIRM ────────────────────── */}
+      <ConfirmDialog
+        open={nukeConfirmOpen}
+        onOpenChange={setNukeConfirmOpen}
+        title="Nuke Entire Database?"
+        description="This deletes the IndexedDB database file itself — harder to recover than a normal wipe. The app will reload fresh. Dev use only."
+        confirmLabel="Nuke It"
+        variant="destructive"
+        onConfirm={nukeIndexedDb}
+        countdownSeconds={3}
       />
 
       {/* ── DISABLE LOCK CONFIRM ─────────────────────── */}
