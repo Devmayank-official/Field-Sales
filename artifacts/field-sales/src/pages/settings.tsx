@@ -551,22 +551,6 @@ export default function Settings() {
               </div>
             </button>
 
-            {/* Load Sample Data — hidden in production */}
-            {!isProduction && (
-              <button
-                onClick={() => setSeedConfirmOpen(true)}
-                className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
-              >
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <RefreshCw className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-medium">Load Sample Data</p>
-                  <p className="text-xs text-muted-foreground">Development only — reset with demo records</p>
-                </div>
-              </button>
-            )}
-
             {/* Wipe Data */}
             <button
               onClick={() => setClearConfirmOpen(true)}
@@ -645,6 +629,20 @@ export default function Settings() {
                     </div>
                   ))}
                 </div>
+
+                {/* Load Sample Data */}
+                <button
+                  onClick={() => setSeedConfirmOpen(true)}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
+                >
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    <RefreshCw className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Load Sample Data</p>
+                    <p className="text-xs text-muted-foreground">Clear & reseed DB with demo clients, fridges & visits</p>
+                  </div>
+                </button>
 
                 {/* Actions */}
                 <button
