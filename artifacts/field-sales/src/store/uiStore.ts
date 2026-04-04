@@ -38,10 +38,12 @@ interface UiState {
   pinLength: number;
   biometricCredId: string | null;
   isLocked: boolean;
+  lockTimeoutMinutes: number;
   enableLock: (pinHash: string, pinLength: number, biometricCredId?: string) => void;
   disableLock: () => void;
   setLocked: (locked: boolean) => void;
   setBiometricCredId: (id: string | null) => void;
+  setLockTimeout: (minutes: number) => void;
 }
 
 const defaultProfile: UserProfile = {
@@ -92,6 +94,8 @@ export const useUiStore = create<UiState>()(
       pinLength: 4,
       biometricCredId: null,
       isLocked: false,
+      lockTimeoutMinutes: 0,
+      setLockTimeout: (minutes) => set({ lockTimeoutMinutes: minutes }),
       enableLock: (pinHash, pinLength, biometricCredId) => {
         // Write PIN hash to native keychain / localStorage (web fallback)
         secureStorage.setPin(pinHash).catch(() => {});
@@ -128,6 +132,7 @@ export const useUiStore = create<UiState>()(
         pinHash: s.pinHash,
         pinLength: s.pinLength,
         biometricCredId: s.biometricCredId,
+        lockTimeoutMinutes: s.lockTimeoutMinutes,
       }),
     }
   )

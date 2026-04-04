@@ -8,9 +8,11 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Download, Upload, RefreshCw, Trash2, Database, UserCircle, Moon,
   Edit2, Check, X, FileJson, FileSpreadsheet, Lock, LockOpen, Fingerprint, ShieldCheck,
-  Bug, ChevronDown, ChevronUp, Copy, Cpu,
+  Bug, ChevronDown, ChevronUp, Copy, Cpu, Bell, BellOff, Timer,
 } from "lucide-react";
 import { copyToClipboard } from "@/lib/native/clipboard";
+import { requestNotificationPermission, scheduleReminder } from "@/lib/native/notifications";
+import { zustandPrefsStorage } from "@/lib/native/preferences";
 import { hashPin, setupBiometric, isBiometricAvailable } from "@/lib/native/biometric";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -117,7 +119,11 @@ function downloadBlob(content: string, filename: string, mime: string) {
 
 export default function Settings() {
   const { toast } = useToast();
-  const { isDarkMode, toggleDarkMode, profile, setProfile, lockEnabled, enableLock, disableLock, setBiometricCredId, biometricCredId } = useUiStore();
+  const {
+    isDarkMode, toggleDarkMode, profile, setProfile,
+    lockEnabled, enableLock, disableLock, setBiometricCredId, biometricCredId,
+    lockTimeoutMinutes, setLockTimeout,
+  } = useUiStore();
 
   const importJsonRef = useRef<HTMLInputElement>(null);
   const importCsvClientsRef = useRef<HTMLInputElement>(null);
@@ -137,9 +143,11 @@ export default function Settings() {
 
   const [debugOpen, setDebugOpen] = useState(false);
   const [nukeConfirmOpen, setNukeConfirmOpen] = useState(false);
+  const [clearStoreConfirmOpen, setClearStoreConfirmOpen] = useState(false);
   const [dbStats, setDbStats] = useState<{
     clients: number; fridges: number; visits: number; images: number; reminders: number;
   } | null>(null);
+  const [notifGranted, setNotifGranted] = useState(false);
 
   const [lockSetupOpen, setLockSetupOpen] = useState(false);
   const [disableLockConfirm, setDisableLockConfirm] = useState(false);
@@ -155,17 +163,20 @@ export default function Settings() {
     isBiometricAvailable().then(setBioAvailable);
   });
 
-  useEffect(() => {
+  const loadStats = useCallback(async () => {
     if (isProduction) return;
-    const load = async () => {
-      const [c, f, v, img, r] = await Promise.all([
-        db.clients.count(), db.fridges.count(), db.visits.count(),
-        db.images.count(), db.reminders.count(),
-      ]);
-      setDbStats({ clients: c, fridges: f, visits: v, images: img, reminders: r });
-    };
-    load();
+    const [c, f, v, img, r] = await Promise.all([
+      db.clients.count(), db.fridges.count(), db.visits.count(),
+      db.images.count(), db.reminders.count(),
+    ]);
+    setDbStats({ clients: c, fridges: f, visits: v, images: img, reminders: r });
   }, [isProduction]);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  useEffect(() => {
+    requestNotificationPermission().then(setNotifGranted);
+  }, []);
 
   const copyDebugInfo = async () => {
     const info = {
@@ -185,6 +196,34 @@ export default function Settings() {
     indexedDB.deleteDatabase("FieldSalesDB");
     toast({ title: "Database nuked — reloading..." });
     setTimeout(() => window.location.reload(), 1200);
+  };
+
+  const clearUiStore = async () => {
+    await zustandPrefsStorage.removeItem("field-sales-ui");
+    toast({ title: "Settings store cleared — reloading..." });
+    setTimeout(() => window.location.reload(), 1200);
+  };
+
+  const rescheduleAllReminders = async () => {
+    const granted = await requestNotificationPermission();
+    if (!granted) { toast({ title: "Notifications not permitted", variant: "destructive" }); return; }
+    const pending = await db.reminders.where("isCompleted").equals(0 as unknown as boolean).toArray();
+    let scheduled = 0;
+    for (const r of pending) {
+      if (r.dueAt > Date.now()) {
+        await scheduleReminder(r.id, "FieldSales Reminder", r.title, new Date(r.dueAt)).catch(() => {});
+        scheduled++;
+      }
+    }
+    toast({ title: `Scheduled ${scheduled} reminder notification${scheduled !== 1 ? "s" : ""}` });
+    setNotifGranted(true);
+  };
+
+  const testToasts = () => {
+    toast({ title: "Default toast", description: "Everything looks good" });
+    setTimeout(() => toast({ title: "Success!", description: "Action completed", className: "border-green-500" }), 600);
+    setTimeout(() => toast({ title: "Warning", description: "Something needs attention", variant: "default" }), 1200);
+    setTimeout(() => toast({ title: "Error", description: "Something went wrong", variant: "destructive" }), 1800);
   };
 
   const openLockSetup = () => {

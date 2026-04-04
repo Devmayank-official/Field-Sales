@@ -4,6 +4,12 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
+import { execSync } from "child_process";
+
+const gitSha = (() => {
+  try { return execSync("git rev-parse --short HEAD").toString().trim(); } catch { return "unknown"; }
+})();
+const appVersion = "1.0.0";
 
 const rawPort = process.env.PORT;
 
@@ -26,6 +32,10 @@ if (!isCapacitorBuild && !basePath) {
 
 export default defineConfig({
   base: isCapacitorBuild ? "/" : basePath,
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __GIT_SHA__: JSON.stringify(gitSha),
+  },
   plugins: [
     react(),
     tailwindcss(),

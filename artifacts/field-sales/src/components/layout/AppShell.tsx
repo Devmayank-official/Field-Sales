@@ -103,7 +103,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { data: activeVisits } = useActiveVisits();
   const { data: pendingReminders } = usePendingReminders();
-  const { lockEnabled, isLocked, isCreateClientOpen, setCreateClientOpen } = useUiStore();
+  const { lockEnabled, isLocked, isCreateClientOpen, setCreateClientOpen, lockTimeoutMinutes, setLocked } = useUiStore();
+
+  useEffect(() => {
+    if (!lockEnabled || lockTimeoutMinutes === 0 || isLocked) return;
+    const ms = lockTimeoutMinutes * 60 * 1000;
+    let timer = window.setTimeout(() => setLocked(true), ms);
+    const reset = () => { clearTimeout(timer); timer = window.setTimeout(() => setLocked(true), ms); };
+    const events = ["mousemove", "keydown", "touchstart", "click", "scroll"] as const;
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    return () => { clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)); };
+  }, [lockEnabled, isLocked, lockTimeoutMinutes, setLocked]);
 
   const hasActiveVisit = activeVisits && activeVisits.length > 0;
   const activeVisitId = hasActiveVisit ? activeVisits[0].id : null;
