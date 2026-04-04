@@ -66,3 +66,18 @@ export function useDeleteFridge() {
     },
   });
 }
+
+export function useTransferFridge() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, newClientId }: { id: string; newClientId: string }) =>
+      fridgeRepo.transfer(id, newClientId),
+    onSuccess: (data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['fridges'] });
+      queryClient.invalidateQueries({ queryKey: ['fridges', id] });
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: ['fridges', 'client', data.clientId] });
+      }
+    },
+  });
+}

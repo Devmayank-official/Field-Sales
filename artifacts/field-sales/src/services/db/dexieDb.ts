@@ -47,6 +47,8 @@ export class FieldSalesDB extends Dexie {
 export const db = new FieldSalesDB();
 
 export async function seedDatabase() {
+  if (!import.meta.env.DEV) return;
+
   const clientCount = await db.clients.count();
   if (clientCount > 0) return;
 

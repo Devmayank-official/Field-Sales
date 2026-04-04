@@ -16,9 +16,11 @@ import { ImageCapture } from "@/components/ui/image-capture";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
-  MapPin, Phone, Mail, Clock, Store, Plus, ChevronLeft, Trash2, Edit,
+  MapPin, Phone, Mail, Clock, Store, Plus, X, ChevronLeft, Trash2, Edit,
   Calendar, DollarSign, RefreshCw, Archive, ArchiveRestore, Navigation, Share2, Copy, CheckCheck,
+  ThermometerSnowflake,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { format, differenceInDays } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ClientForm } from "@/components/forms/ClientForm";
@@ -52,6 +54,7 @@ export default function ClientDetail() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [phoneCopied, setPhoneCopied] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const activeClientVisit = allVisits?.find((v) => v.status === "active");
 
@@ -435,6 +438,70 @@ export default function ClientDetail() {
         confirmLabel={client.isArchived ? "Restore" : "Archive"}
         onConfirm={handleArchiveToggle}
       />
+
+      {/* Context-Aware FAB */}
+      {!client.isArchived && (
+        <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3">
+          <AnimatePresence>
+            {fabOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.6, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.6, y: 10 }}
+                  transition={{ delay: 0.05, type: "spring", stiffness: 400, damping: 25 }}
+                  className="flex items-center gap-3"
+                >
+                  <span className="bg-card border border-border shadow-lg rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap">
+                    Add Fridge
+                  </span>
+                  <button
+                    onClick={() => { setFabOpen(false); openCreateFridge(id); }}
+                    className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center shrink-0 active:scale-90 transition-transform bg-blue-500 text-white"
+                  >
+                    <ThermometerSnowflake className="w-5 h-5" />
+                  </button>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.6, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.6, y: 10 }}
+                  transition={{ delay: 0, type: "spring", stiffness: 400, damping: 25 }}
+                  className="flex items-center gap-3"
+                >
+                  <span className="bg-card border border-border shadow-lg rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap">
+                    {activeClientVisit ? "Resume Visit" : "Start Visit"}
+                  </span>
+                  <button
+                    onClick={() => { setFabOpen(false); handleStartVisit(); }}
+                    className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center shrink-0 active:scale-90 transition-transform bg-emerald-500 text-white"
+                    disabled={isStartingVisit || startVisitMutation.isPending}
+                  >
+                    <Store className="w-5 h-5" />
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setFabOpen((p) => !p)}
+            className={cn(
+              "w-14 h-14 rounded-full shadow-xl shadow-primary/30 flex items-center justify-center transition-colors",
+              fabOpen ? "bg-foreground text-background" : "bg-primary text-primary-foreground"
+            )}
+          >
+            <motion.div
+              animate={{ rotate: fabOpen ? 45 : 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            >
+              {fabOpen ? <X className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+            </motion.div>
+          </motion.button>
+        </div>
+      )}
     </div>
   );
 }

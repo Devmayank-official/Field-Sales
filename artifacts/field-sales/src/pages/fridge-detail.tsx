@@ -1,6 +1,6 @@
 import { useParams, useLocation } from "wouter";
-import { useFridge, useUpdateFridge, useDeleteFridge } from "@/hooks/useFridges";
-import { useClient } from "@/hooks/useClients";
+import { useFridge, useUpdateFridge, useDeleteFridge, useTransferFridge } from "@/hooks/useFridges";
+import { useClient, useClients } from "@/hooks/useClients";
 import { useEntityImages, useAddImage, useDeleteImage } from "@/hooks/useImages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,8 @@ import { ImageCapture } from "@/components/ui/image-capture";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QrScanner } from "@/components/ui/qr-scanner";
-import { ChevronLeft, QrCode, ThermometerSnowflake, Trash2, Copy, CheckCircle, ScanLine } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { ChevronLeft, QrCode, ThermometerSnowflake, Trash2, Copy, CheckCircle, ScanLine, ArrowLeftRight, Search, Store } from "lucide-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +19,7 @@ import { useState, useEffect } from "react";
 import { FridgeConditionEnum, type FridgeCondition } from "@/lib/schema";
 import { useToast } from "@/hooks/use-toast";
 import { copyToClipboard } from "@/lib/native/clipboard";
+import { cn } from "@/lib/utils";
 
 export default function FridgeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,11 +28,13 @@ export default function FridgeDetail() {
 
   const { data: fridge, isLoading: fridgeLoading } = useFridge(id);
   const { data: client } = useClient(fridge?.clientId ?? "");
+  const { data: allClients } = useClients();
   const { data: images } = useEntityImages("fridge", id);
   const addImageMutation = useAddImage("fridge", id);
   const deleteImageMutation = useDeleteImage("fridge", id);
   const updateMutation = useUpdateFridge();
   const deleteMutation = useDeleteFridge();
+  const transferMutation = useTransferFridge();
 
   const [condition, setCondition] = useState<FridgeCondition>("Good");
   const [notes, setNotes] = useState("");
@@ -41,6 +45,9 @@ export default function FridgeDetail() {
   const [isDirty, setIsDirty] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferSearch, setTransferSearch] = useState("");
+  const [transferConfirmClient, setTransferConfirmClient] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (fridge) {
@@ -92,6 +99,28 @@ export default function FridgeDetail() {
     toast({ title: "QR Code scanned", description: value.slice(0, 40) });
   };
 
+  const handleTransfer = () => {
+    if (!transferConfirmClient) return;
+    transferMutation.mutate(
+      { id, newClientId: transferConfirmClient.id },
+      {
+        onSuccess: () => {
+          toast({ title: "Asset transferred", description: `Moved to ${transferConfirmClient.name}` });
+          setTransferOpen(false);
+          setTransferConfirmClient(null);
+          setLocation(`/client/${transferConfirmClient.id}`);
+        },
+      }
+    );
+  };
+
+  const transferableClients = allClients?.filter(
+    c => !c.isArchived && c.id !== fridge?.clientId &&
+      (transferSearch === "" ||
+        c.name.toLowerCase().includes(transferSearch.toLowerCase()) ||
+        c.address.toLowerCase().includes(transferSearch.toLowerCase()))
+  ) ?? [];
+
   if (fridgeLoading) return <div className="p-6 animate-pulse bg-primary/5 h-screen" />;
   if (!fridge) return <div className="p-6">Asset not found.</div>;
 
@@ -103,14 +132,24 @@ export default function FridgeDetail() {
           <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="-ml-2">
             <ChevronLeft className="w-6 h-6" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setDeleteConfirmOpen(true)}
-            className="text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTransferOpen(true)}
+              title="Transfer to another client"
+            >
+              <ArrowLeftRight className="w-5 h-5 text-muted-foreground" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -295,12 +334,72 @@ export default function FridgeDetail() {
         onConfirm={handleDelete}
       />
 
+      {/* Transfer Confirm Modal */}
+      <ConfirmDialog
+        open={!!transferConfirmClient}
+        onOpenChange={(open) => { if (!open) setTransferConfirmClient(null); }}
+        title="Transfer Asset?"
+        description={`Move this asset to ${transferConfirmClient?.name}? The asset history stays intact.`}
+        confirmLabel="Transfer"
+        onConfirm={handleTransfer}
+      />
+
       {/* QR Scanner */}
       <QrScanner
         open={qrScannerOpen}
         onOpenChange={setQrScannerOpen}
         onScan={handleQrScan}
       />
+
+      {/* Transfer Sheet */}
+      <Sheet open={transferOpen} onOpenChange={(open) => { setTransferOpen(open); if (!open) setTransferSearch(""); }}>
+        <SheetContent side="bottom" className="h-[75vh] rounded-t-2xl flex flex-col px-0 pb-0">
+          <SheetHeader className="px-6 pt-6 pb-3 shrink-0">
+            <SheetTitle className="text-xl">Transfer Asset</SheetTitle>
+            <SheetDescription>
+              Move this fridge to a different client. Visit history stays intact.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="px-6 pb-3 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={transferSearch}
+                onChange={(e) => setTransferSearch(e.target.value)}
+                placeholder="Search clients..."
+                className="pl-9 bg-muted/50"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-2">
+            {transferableClients.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <Store className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                <p className="text-sm">No other clients found.</p>
+              </div>
+            ) : (
+              transferableClients.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => { setTransferConfirmClient({ id: c.id, name: c.name }); }}
+                  className={cn(
+                    "w-full text-left p-4 rounded-xl border border-border bg-card hover:bg-muted/60 transition-colors",
+                    "flex items-center justify-between gap-3"
+                  )}
+                >
+                  <div>
+                    <p className="font-semibold text-sm">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.address}</p>
+                  </div>
+                  <StatusBadge status={c.status} />
+                </button>
+              ))
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

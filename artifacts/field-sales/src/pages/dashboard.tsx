@@ -5,14 +5,32 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, ArrowRight, Store, ThermometerSnowflake, MapPin } from "lucide-react";
 import { Link } from "wouter";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, startOfWeek, startOfMonth } from "date-fns";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { motion } from "framer-motion";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+
+type DateRange = "today" | "week" | "month";
+
+const RANGE_LABELS: { value: DateRange; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+];
+
+function getRangeStart(range: DateRange): Date {
+  const now = new Date();
+  if (range === "today") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (range === "week") return startOfWeek(now, { weekStartsOn: 1 });
+  return startOfMonth(now);
+}
 
 export default function Dashboard() {
   const { data: clients, isLoading: clientsLoading } = useClients();
   const { data: fridges, isLoading: fridgesLoading } = useAllFridges();
   const { data: visits, isLoading: visitsLoading } = useAllVisits();
+  const [dateRange, setDateRange] = useState<DateRange>("today");
 
   const isLoading = clientsLoading || fridgesLoading || visitsLoading;
 
@@ -29,8 +47,10 @@ export default function Dashboard() {
   }
 
   const today = new Date();
-  const todayVisits = visits?.filter(v => new Date(v.startedAt).toDateString() === today.toDateString()) || [];
-  
+  const rangeStart = getRangeStart(dateRange);
+
+  const rangedVisits = visits?.filter(v => new Date(v.startedAt) >= rangeStart) || [];
+
   const clientsNeedingVisit = clients?.filter(c => {
     if (!c.lastVisitAt || c.status === "Inactive" || c.status === "Lead") return false;
     const threshold = c.visitFrequency ?? 14;
@@ -38,6 +58,11 @@ export default function Dashboard() {
   }) || [];
 
   const criticalFridges = fridges?.filter(f => f.condition === "Critical" || f.condition === "Dead") || [];
+
+  const recentVisits = [...(visits || [])]
+    .filter(v => new Date(v.startedAt) >= rangeStart)
+    .sort((a, b) => b.startedAt - a.startedAt)
+    .slice(0, 5);
 
   const container = {
     hidden: { opacity: 0 },
@@ -49,7 +74,7 @@ export default function Dashboard() {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial="hidden" animate="show" variants={container}
       className="flex flex-col min-h-full"
     >
@@ -57,6 +82,24 @@ export default function Dashboard() {
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border px-6 py-3">
         <h1 className="text-2xl font-bold text-foreground">Overview</h1>
         <p className="text-sm text-muted-foreground">{format(today, "EEEE, MMMM do")}</p>
+
+        {/* Date Range Selector */}
+        <div className="flex gap-1.5 mt-2.5">
+          {RANGE_LABELS.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setDateRange(value)}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-semibold transition-colors",
+                dateRange === value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="p-6 space-y-8 flex-1">
@@ -67,17 +110,19 @@ export default function Dashboard() {
               <CardContent className="p-5">
                 <Store className="w-6 h-6 text-primary mb-3" />
                 <p className="text-sm font-medium text-muted-foreground">Total Clients</p>
-                <p className="text-2xl font-bold">{clients?.length || 0}</p>
+                <p className="text-2xl font-bold">{clients?.filter(c => !c.isArchived).length || 0}</p>
               </CardContent>
             </Card>
           </motion.div>
-          
+
           <motion.div variants={item}>
             <Card className="bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20 hover-elevate">
               <CardContent className="p-5">
                 <MapPin className="w-6 h-6 text-blue-500 mb-3" />
-                <p className="text-sm font-medium text-muted-foreground">Visits Today</p>
-                <p className="text-2xl font-bold">{todayVisits.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {dateRange === "today" ? "Visits Today" : dateRange === "week" ? "Visits This Week" : "Visits This Month"}
+                </p>
+                <p className="text-2xl font-bold">{rangedVisits.length}</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -152,10 +197,12 @@ export default function Dashboard() {
 
         {/* Recent Visits */}
         <motion.section variants={item} className="space-y-4">
-          <h2 className="text-xl font-bold">Recent Visits</h2>
-          {visits && visits.length > 0 ? (
+          <h2 className="text-xl font-bold">
+            {dateRange === "today" ? "Today's Visits" : dateRange === "week" ? "This Week's Visits" : "This Month's Visits"}
+          </h2>
+          {recentVisits.length > 0 ? (
             <div className="space-y-3">
-               {visits.slice(0, 3).map(visit => {
+               {recentVisits.map(visit => {
                   const client = clients?.find(c => c.id === visit.clientId);
                   return (
                     <Card key={visit.id} className="hover-elevate">
@@ -178,7 +225,7 @@ export default function Dashboard() {
             <Card className="border-dashed">
               <CardContent className="p-8 text-center text-muted-foreground">
                 <MapPin className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                <p>No visits recorded yet.</p>
+                <p>No visits in this period.</p>
               </CardContent>
             </Card>
           )}

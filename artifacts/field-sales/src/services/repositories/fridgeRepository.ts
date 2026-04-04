@@ -26,5 +26,10 @@ export const fridgeRepo = {
 
   delete: async (id: string) => {
     await db.fridges.delete(id);
-  }
+  },
+
+  transfer: async (id: string, newClientId: string) => {
+    await db.fridges.update(id, { clientId: newClientId, updatedAt: Date.now() });
+    return await db.fridges.get(id);
+  },
 };

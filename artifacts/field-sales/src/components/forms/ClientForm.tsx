@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ContactRound, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import type { ColorLabel } from "@/lib/schema";
-import { haptic } from "@/lib/haptic";
+import { haptic } from "@/lib/native/haptics";
 
 interface ClientFormProps {
   initialData?: InsertClient & { id: string };
