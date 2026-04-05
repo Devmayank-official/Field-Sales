@@ -108,6 +108,9 @@ function App() {
         import("@capacitor/keyboard")
           .then(({ Keyboard }) => Keyboard.setAccessoryBarVisible({ isVisible: false }))
           .catch(() => {});
+        import("@/lib/native/screenOrientation")
+          .then(({ lockPortrait }) => lockPortrait())
+          .catch(() => {});
       }
     });
   }, []);

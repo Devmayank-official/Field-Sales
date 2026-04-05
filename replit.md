@@ -165,7 +165,7 @@ pnpm open:android  # opens Android Studio
 
 **Key files:**
 - `src/lib/schema.ts` — Zod schemas + TypeScript types
-- `src/lib/native/` — Capacitor abstraction layer (haptics, biometric, secureStorage, geolocation, notifications, camera, scanner)
+- `src/lib/native/` — Capacitor abstraction layer (haptics, biometric, secureStorage, geolocation, notifications, camera, scanner, screenOrientation)
 - `src/services/db/dexieDb.ts` — Dexie v4 DB (v4 adds `_dirty` index on all tables for sync tracking) + seed data
 - `src/services/repositories/` — clientRepo, fridgeRepo, visitRepo, imageRepo, reminderRepo (all set `_dirty: true` on create/update)
 - `src/services/syncService.ts` — offline-first sync: `runSync()` pushes dirty records to `/api/sync/push`, pulls server changes via `/api/sync/pull?since=<ms>`, marks records clean; `getDirtyCount()` counts pending
