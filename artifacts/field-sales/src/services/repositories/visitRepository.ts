@@ -20,13 +20,14 @@ export const visitRepo = {
       locationLng: lng,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      _dirty: true,
     };
     await db.visits.add(newVisit);
     return newVisit;
   },
 
   updateVisit: async (id: string, data: Partial<Visit>) => {
-    await db.visits.update(id, { ...data, updatedAt: Date.now() });
+    await db.visits.update(id, { ...data, updatedAt: Date.now(), _dirty: true });
     return db.visits.get(id);
   },
 
@@ -50,12 +51,13 @@ export const visitRepo = {
         locationNote: locationNote ?? visit.locationNote,
         fridgesChecked,
         updatedAt: now,
+        _dirty: true,
       });
 
-      await db.clients.update(visit.clientId, { lastVisitAt: now, updatedAt: now });
+      await db.clients.update(visit.clientId, { lastVisitAt: now, updatedAt: now, _dirty: true });
 
       for (const fridgeId of fridgesChecked) {
-        await db.fridges.update(fridgeId, { lastCheckedAt: now, updatedAt: now });
+        await db.fridges.update(fridgeId, { lastCheckedAt: now, updatedAt: now, _dirty: true });
       }
     });
     return db.visits.get(id);

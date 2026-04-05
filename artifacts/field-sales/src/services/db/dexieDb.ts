@@ -41,6 +41,23 @@ export class FieldSalesDB extends Dexie {
           if (c.isArchived === undefined) c.isArchived = false;
         });
       });
+    this.version(4)
+      .stores({
+        clients: "id, name, status, lastVisitAt, isArchived, _dirty",
+        fridges: "id, clientId, condition, serialNo, gccCode, _dirty",
+        visits: "id, clientId, status, startedAt, _dirty",
+        images: "id, entityType, entityId, createdAt",
+        reminders: "id, dueAt, clientId, isCompleted, _dirty",
+      })
+      .upgrade((tx) => {
+        const markClean = (item: Record<string, unknown>) => { item._dirty = false; };
+        return Promise.all([
+          tx.table("clients").toCollection().modify(markClean),
+          tx.table("fridges").toCollection().modify(markClean),
+          tx.table("visits").toCollection().modify(markClean),
+          tx.table("reminders").toCollection().modify(markClean),
+        ]);
+      });
   }
 }
 

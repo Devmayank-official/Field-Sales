@@ -9,6 +9,7 @@ import { useUiStore } from "@/store/uiStore";
 import { setAppBadge } from "@/lib/native/badge";
 import { NetworkBanner } from "@/components/layout/NetworkBanner";
 import { LockScreen } from "@/components/layout/LockScreen";
+import { SyncBadge } from "@/components/layout/SyncBadge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ClientForm } from "@/components/forms/ClientForm";
 
@@ -150,6 +151,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="font-bold text-base tracking-tight">FieldSales</span>
             </div>
             <div className="flex items-center gap-2">
+              {/* Sync status */}
+              <SyncBadge />
               {/* Reminders bell */}
               <Link
                 href="/reminders"

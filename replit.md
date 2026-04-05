@@ -52,14 +52,21 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ### `artifacts/api-server` (`@workspace/api-server`)
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+Express 5 API server. Routes live in `src/routes/` and use `@workspace/db` for validation (drizzle-zod schemas) and persistence.
 
 - Entry: `src/index.ts` — reads `PORT`, starts Express
 - App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
+- Routes: `src/routes/index.ts` mounts all sub-routers
+  - `health.ts` — `GET /api/healthz`
+  - `clients.ts` — full CRUD (`GET /api/clients?status=&isArchived=&search=`, `POST`, `GET /:id`, `PUT /:id`, `DELETE /:id`)
+  - `fridges.ts` — full CRUD (`GET /api/fridges?clientId=`, `POST`, `GET /:id`, `PUT /:id`, `DELETE /:id`)
+  - `visits.ts` — `GET /api/visits?clientId=`, `POST`, `GET /:id`, `PUT /:id`
+  - `reminders.ts` — `GET /api/reminders?clientId=`, `POST`, `PUT /:id`, `DELETE /:id`
+  - `sync.ts` — `POST /api/sync/push` (bulk upsert from device), `GET /api/sync/pull?since=<ms>` (changes since timestamp)
+- Validation uses drizzle-zod `insertXxxSchema` from `@workspace/db` — no hand-written Zod
 - Depends on: `@workspace/db`, `@workspace/api-zod`
 - `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
+- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.mjs`)
 - Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
 
 ### `lib/db` (`@workspace/db`)
@@ -159,13 +166,16 @@ pnpm open:android  # opens Android Studio
 **Key files:**
 - `src/lib/schema.ts` — Zod schemas + TypeScript types
 - `src/lib/native/` — Capacitor abstraction layer (haptics, biometric, secureStorage, geolocation, notifications, camera, scanner)
-- `src/services/db/dexieDb.ts` — Dexie v2 DB + seed data
-- `src/services/repositories/` — clientRepo, fridgeRepo, visitRepo, imageRepo, reminderRepo
+- `src/services/db/dexieDb.ts` — Dexie v4 DB (v4 adds `_dirty` index on all tables for sync tracking) + seed data
+- `src/services/repositories/` — clientRepo, fridgeRepo, visitRepo, imageRepo, reminderRepo (all set `_dirty: true` on create/update)
+- `src/services/syncService.ts` — offline-first sync: `runSync()` pushes dirty records to `/api/sync/push`, pulls server changes via `/api/sync/pull?since=<ms>`, marks records clean; `getDirtyCount()` counts pending
+- `src/hooks/useSyncStatus.ts` — React hook: tracks `state` (synced/pending/syncing/offline/error), `pendingCount`, `lastSyncAt`; auto-syncs on online event + every 60s
 - `src/hooks/` — useClients, useFridges, useVisits, useImages, useReminders (with notification scheduling)
 - `src/store/uiStore.ts` — Zustand store (dark mode, lock state, profile; PIN also written to secureStorage)
 - `src/pages/` — dashboard, clients, client-detail, fridge-detail, active-visit, search, settings, reminders
 - `src/components/forms/` — ClientForm, FridgeForm (with QR scanner)
-- `src/components/layout/AppShell.tsx` — global layout: top bar, FAB menu, bottom nav
+- `src/components/layout/AppShell.tsx` — global layout: top bar (with SyncBadge), FAB menu, bottom nav
+- `src/components/layout/SyncBadge.tsx` — sync status badge in top bar: "Synced" / "N pending" / "Syncing…" / "Offline" / "Sync error"; tap to trigger manual sync
 - `src/components/layout/LockScreen.tsx` — PIN + biometric lock screen
 - `src/components/ui/qr-scanner.tsx` — native ML Kit scanner (native) / jsqr (web)
 - `src/components/ui/image-capture.tsx` — native camera (native) / file input (web)

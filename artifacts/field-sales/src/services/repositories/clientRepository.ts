@@ -12,20 +12,20 @@ export const clientRepo = {
       ...data,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      _dirty: true,
     };
     await db.clients.add(newClient);
     return newClient;
   },
 
   update: async (id: string, data: Partial<InsertClient>) => {
-    await db.clients.update(id, { ...data, updatedAt: Date.now() });
+    await db.clients.update(id, { ...data, updatedAt: Date.now(), _dirty: true });
     return await db.clients.get(id);
   },
 
   delete: async (id: string) => {
     await db.transaction('rw', db.clients, db.fridges, db.visits, async () => {
       await db.clients.delete(id);
-      // Cascading delete for related entities
       await db.fridges.where('clientId').equals(id).delete();
       await db.visits.where('clientId').equals(id).delete();
     });

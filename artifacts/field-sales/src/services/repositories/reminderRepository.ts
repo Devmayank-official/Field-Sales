@@ -22,18 +22,19 @@ export const reminderRepo = {
       id: uuidv4(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      _dirty: true,
     };
     await db.reminders.add(reminder);
     return reminder;
   },
 
   update: async (id: string, data: Partial<Reminder>) => {
-    await db.reminders.update(id, { ...data, updatedAt: Date.now() });
+    await db.reminders.update(id, { ...data, updatedAt: Date.now(), _dirty: true });
     return db.reminders.get(id);
   },
 
   complete: async (id: string) => {
-    await db.reminders.update(id, { isCompleted: true, updatedAt: Date.now() });
+    await db.reminders.update(id, { isCompleted: true, updatedAt: Date.now(), _dirty: true });
   },
 
   delete: async (id: string) => db.reminders.delete(id),

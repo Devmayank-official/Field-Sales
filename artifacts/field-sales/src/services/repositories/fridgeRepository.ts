@@ -14,13 +14,14 @@ export const fridgeRepo = {
       installationDate: Date.now(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      _dirty: true,
     };
     await db.fridges.add(newFridge);
     return newFridge;
   },
 
   update: async (id: string, data: Partial<InsertFridge>) => {
-    await db.fridges.update(id, { ...data, updatedAt: Date.now() });
+    await db.fridges.update(id, { ...data, updatedAt: Date.now(), _dirty: true });
     return await db.fridges.get(id);
   },
 
@@ -29,7 +30,7 @@ export const fridgeRepo = {
   },
 
   transfer: async (id: string, newClientId: string) => {
-    await db.fridges.update(id, { clientId: newClientId, updatedAt: Date.now() });
+    await db.fridges.update(id, { clientId: newClientId, updatedAt: Date.now(), _dirty: true });
     return await db.fridges.get(id);
   },
 };

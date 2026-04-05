@@ -40,6 +40,7 @@ export interface Client {
   createdAt: number;
   updatedAt: number;
   lastVisitAt?: number;
+  _dirty?: boolean;
 }
 
 export interface Fridge {
@@ -54,6 +55,7 @@ export interface Fridge {
   notes?: string;
   createdAt: number;
   updatedAt: number;
+  _dirty?: boolean;
 }
 
 export interface Visit {
@@ -70,6 +72,7 @@ export interface Visit {
   fridgesChecked: string[];
   createdAt: number;
   updatedAt: number;
+  _dirty?: boolean;
 }
 
 export interface AppImage {
@@ -91,6 +94,7 @@ export interface Reminder {
   isCompleted: boolean;
   createdAt: number;
   updatedAt: number;
+  _dirty?: boolean;
 }
 
 export const insertClientSchema = z.object({
