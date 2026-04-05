@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,7 +121,7 @@ export default function Settings() {
   const { toast } = useToast();
   const {
     isDarkMode, toggleDarkMode, profile, setProfile,
-    lockEnabled, enableLock, disableLock, setBiometricCredId, biometricCredId,
+    lockEnabled, pinLength, enableLock, disableLock, setBiometricCredId, biometricCredId,
     lockTimeoutMinutes, setLockTimeout,
   } = useUiStore();
 
@@ -550,6 +550,86 @@ export default function Settings() {
                 {biometricCredId && <Check className="w-4 h-4 text-green-500 ml-auto" />}
               </button>
             )}
+
+            {lockEnabled && (
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-muted text-muted-foreground">
+                    <Timer className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Auto-Lock Timer</p>
+                    <p className="text-xs text-muted-foreground">Lock after this long idle</p>
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  {([0, 5, 15, 30] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setLockTimeout(m)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        lockTimeoutMinutes === m
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      {m === 0 ? "Off" : `${m}m`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Notifications */}
+      <div className="space-y-3">
+        <h3 className="font-bold flex items-center gap-2">
+          <Bell className="w-4 h-4" /> Notifications
+        </h3>
+        <Card className="border-border bg-card">
+          <CardContent className="p-0 divide-y divide-border">
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${notifGranted ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                  {notifGranted ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
+                </div>
+                <div>
+                  <p className="font-medium">Push Notifications</p>
+                  <p className="text-xs text-muted-foreground">
+                    {notifGranted ? "Notifications enabled — reminders will alert you" : "Allow notifications for reminder alerts"}
+                  </p>
+                </div>
+              </div>
+              {notifGranted
+                ? <Check className="w-4 h-4 text-green-500 shrink-0" />
+                : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 h-8 text-xs"
+                    onClick={() => requestNotificationPermission().then(setNotifGranted)}
+                  >
+                    Enable
+                  </Button>
+                )}
+            </div>
+
+            {notifGranted && (
+              <button
+                onClick={rescheduleAllReminders}
+                className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
+              >
+                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium">Reschedule All Reminders</p>
+                  <p className="text-xs text-muted-foreground">Re-register all pending reminders with the OS</p>
+                </div>
+              </button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -628,9 +708,18 @@ export default function Settings() {
 
                 {/* DB Stats */}
                 <div className="p-4 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Database className="w-3.5 h-3.5" /> IndexedDB Record Counts
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Database className="w-3.5 h-3.5" /> IndexedDB Record Counts
+                    </p>
+                    <button
+                      onClick={loadStats}
+                      className="p-1 rounded-md hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
+                      title="Refresh counts"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                   {dbStats ? (
                     <div className="grid grid-cols-3 gap-2">
                       {[
@@ -657,14 +746,37 @@ export default function Settings() {
                     <Cpu className="w-3.5 h-3.5" /> Build & Platform
                   </p>
                   {[
+                    { label: "Version", val: `v${__APP_VERSION__} (${__GIT_SHA__})` },
                     { label: "Build Mode", val: import.meta.env.MODE },
                     { label: "Base URL", val: import.meta.env.BASE_URL || "/" },
                     { label: "Platform", val: Capacitor.getPlatform() },
                     { label: "Native", val: Capacitor.isNativePlatform() ? "Yes" : "No (Web)" },
+                    { label: "Notifications", val: notifGranted ? "Granted" : "Not granted" },
                   ].map(({ label, val }) => (
                     <div key={label} className="flex justify-between items-center text-xs">
                       <span className="text-muted-foreground">{label}</span>
                       <span className="font-mono bg-muted px-2 py-0.5 rounded text-foreground">{val}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* uiStore inspector */}
+                <div className="p-4 space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5" /> uiStore (Persisted State)
+                  </p>
+                  {[
+                    { label: "Name", val: profile.name || "—" },
+                    { label: "Role", val: profile.role || "—" },
+                    { label: "Territory", val: profile.territory || "—" },
+                    { label: "Dark Mode", val: isDarkMode ? "On" : "Off" },
+                    { label: "App Lock", val: lockEnabled ? `ON (${pinLength}-digit PIN)` : "Off" },
+                    { label: "Auto-Lock", val: lockTimeoutMinutes === 0 ? "Off" : `${lockTimeoutMinutes} min` },
+                    { label: "Biometric", val: biometricCredId ? "Configured" : "None" },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-mono bg-muted px-2 py-0.5 rounded text-foreground max-w-[55%] truncate text-right">{val}</span>
                     </div>
                   ))}
                 </div>
@@ -698,6 +810,19 @@ export default function Settings() {
                 </button>
 
                 <button
+                  onClick={testToasts}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
+                >
+                  <div className="p-2 rounded-lg bg-muted text-muted-foreground">
+                    <Bell className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Test Toast Notifications</p>
+                    <p className="text-xs text-muted-foreground">Fire all 4 toast variants in sequence</p>
+                  </div>
+                </button>
+
+                <button
                   onClick={() => window.location.reload()}
                   className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
                 >
@@ -707,6 +832,19 @@ export default function Settings() {
                   <div>
                     <p className="font-medium text-sm">Force Page Reload</p>
                     <p className="text-xs text-muted-foreground">Hard refresh without clearing data</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setClearStoreConfirmOpen(true)}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-orange-500/10 transition-colors text-left group"
+                >
+                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                    <Cpu className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-orange-600">Clear Settings Store</p>
+                    <p className="text-xs text-muted-foreground">Wipe persisted profile, PIN & preferences (IndexedDB untouched)</p>
                   </div>
                 </button>
 
@@ -729,7 +867,7 @@ export default function Settings() {
       )}
 
       <p className="text-center text-xs text-muted-foreground pt-4 pb-4">
-        Field Sales App · v1.0.0
+        Field Sales App · v{__APP_VERSION__} ({__GIT_SHA__})
         <br />
         Offline-First · Data stays on your device
       </p>
@@ -935,6 +1073,18 @@ export default function Settings() {
         confirmLabel="Nuke It"
         variant="destructive"
         onConfirm={nukeIndexedDb}
+        countdownSeconds={3}
+      />
+
+      {/* ── CLEAR UISTORE CONFIRM ─────────────────────── */}
+      <ConfirmDialog
+        open={clearStoreConfirmOpen}
+        onOpenChange={setClearStoreConfirmOpen}
+        title="Clear Settings Store?"
+        description="This resets your profile, PIN, dark mode, and all persisted preferences back to defaults. Your client/fridge/visit data in the database is NOT affected."
+        confirmLabel="Clear Settings"
+        variant="destructive"
+        onConfirm={clearUiStore}
         countdownSeconds={3}
       />
 
