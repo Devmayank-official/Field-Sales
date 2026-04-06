@@ -191,8 +191,8 @@ pnpm open:ios      # opens Xcode
 - `src/lib/native/` — Capacitor abstraction layer (haptics, biometric, secureStorage, geolocation, notifications, camera, scanner, screenOrientation)
 - `src/services/db/dexieDb.ts` — Dexie v4 DB (v4 adds `_dirty` index on all tables for sync tracking) + seed data
 - `src/services/repositories/` — clientRepo, fridgeRepo, visitRepo, imageRepo, reminderRepo (all set `_dirty: true` on create/update)
-- `src/services/syncService.ts` — offline-first sync: `runSync()` pushes dirty records to `/api/sync/push`, pulls server changes via `/api/sync/pull?since=<ms>`, marks records clean; `getDirtyCount()` counts pending
-- `src/hooks/useSyncStatus.ts` — React hook: tracks `state` (synced/pending/syncing/offline/error), `pendingCount`, `lastSyncAt`; auto-syncs on online event + every 60s
+- `src/services/syncService.ts` — offline-first sync: `runSync()` pushes dirty records to `/api/sync/push`, pulls server changes via `/api/sync/pull?since=<ms>`, marks records clean; `getDirtyCount()` counts pending. `API_BASE` reads `import.meta.env.VITE_API_URL ?? "/api"` (native-safe)
+- `src/hooks/useSyncStatus.ts` — React hook: tracks `state` (synced/pending/syncing/offline/error), `pendingCount`, `lastSyncAt`; auto-syncs on online event + every 60s. Uses `triggerSyncRef` pattern to avoid stale closure in 60s interval
 - `src/hooks/` — useClients, useFridges, useVisits, useImages, useReminders (with notification scheduling)
 - `src/store/uiStore.ts` — Zustand store (dark mode, lock state, profile; PIN also written to secureStorage)
 - `src/pages/` — dashboard, clients, client-detail, fridge-detail, active-visit, search, settings, reminders

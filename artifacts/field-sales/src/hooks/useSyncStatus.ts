@@ -18,6 +18,7 @@ export function useSyncStatus(): SyncStatus {
   const [lastSyncAt, setLastSyncAt] = useState(getLastSyncAt());
   const [hasError, setHasError] = useState(false);
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const triggerSyncRef = useRef<() => void | Promise<void>>(() => {});
 
   const refreshPending = useCallback(async () => {
     const count = await getDirtyCount();
@@ -62,12 +63,16 @@ export function useSyncStatus(): SyncStatus {
   }, [refreshPending]);
 
   useEffect(() => {
+    triggerSyncRef.current = triggerSync;
+  }, [triggerSync]);
+
+  useEffect(() => {
     if (!isOnline) return;
     const interval = setInterval(() => {
-      triggerSync();
+      triggerSyncRef.current();
     }, 60_000);
     syncTimerRef.current = interval;
-    triggerSync();
+    triggerSyncRef.current();
     return () => clearInterval(interval);
   }, [isOnline]);
 

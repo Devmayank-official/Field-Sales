@@ -11,20 +11,21 @@ const gitSha = (() => {
 })();
 const appVersion = "1.0.0";
 
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === "true";
+
 const rawPort = process.env.PORT;
 
-if (!rawPort) {
+if (!isCapacitorBuild && !rawPort) {
   throw new Error("PORT environment variable is required but was not provided.");
 }
 
-const port = Number(rawPort);
+const port = Number(rawPort ?? "3000");
 
-if (Number.isNaN(port) || port <= 0) {
+if (!isCapacitorBuild && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
 const basePath = process.env.BASE_PATH;
-const isCapacitorBuild = process.env.CAPACITOR_BUILD === "true";
 
 if (!isCapacitorBuild && !basePath) {
   throw new Error("BASE_PATH environment variable is required but was not provided.");

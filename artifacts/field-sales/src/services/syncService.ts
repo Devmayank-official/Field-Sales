@@ -1,7 +1,7 @@
 import { db } from "./db/dexieDb";
 import type { Client, Fridge, Visit, Reminder } from "@/lib/schema";
 
-const API_BASE = "/api";
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
 const LAST_SYNC_KEY = "field_sales_last_sync_at";
 
 export type SyncResult = {
