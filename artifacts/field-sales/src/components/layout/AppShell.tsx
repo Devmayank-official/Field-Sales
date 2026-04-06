@@ -145,9 +145,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="shrink-0 bg-card/80 backdrop-blur-xl border-b border-border z-40">
           <div className="flex items-center justify-between px-4 h-14 max-w-3xl mx-auto">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <Store className="w-4 h-4 text-primary-foreground" />
-              </div>
+              <img
+                src="/logo-icon.jpg"
+                alt="FieldSales"
+                className="w-8 h-8 rounded-lg object-cover shrink-0"
+              />
               <div className="flex flex-col leading-none gap-0.5">
                 <span className="font-bold text-base tracking-tight">FieldSales</span>
                 <span className="text-[9px] text-muted-foreground tracking-widest uppercase">by DML Labs</span>

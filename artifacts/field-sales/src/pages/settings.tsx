@@ -875,9 +875,11 @@ export default function Settings() {
           <CardContent className="p-0">
             {/* App identity */}
             <div className="flex items-center gap-4 p-4 border-b border-border">
-              <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/25">
-                <span className="text-white font-extrabold text-lg tracking-tight">FS</span>
-              </div>
+              <img
+                src="/logo-icon.jpg"
+                alt="FieldSales"
+                className="w-12 h-12 rounded-2xl object-cover shrink-0 shadow-lg"
+              />
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-base">FieldSales</p>
                 <p className="text-xs text-muted-foreground">Field Sales &amp; Asset Intelligence</p>
