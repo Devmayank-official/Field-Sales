@@ -24,7 +24,7 @@ export default function ActiveVisit() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const { data: visits } = useAllVisits();
+  const { data: visits, isLoading: visitsLoading } = useAllVisits();
   const visit = visits?.find((v) => v.id === id);
 
   const { data: client } = useClient(visit?.clientId ?? "");
@@ -104,6 +104,10 @@ export default function ActiveVisit() {
     ].filter(Boolean);
     await shareText("Visit Summary", lines.join("\n"));
   };
+
+  if (visitsLoading && !visit) {
+    return <div className="p-6 animate-pulse bg-primary/5 h-screen" />;
+  }
 
   if (!visit || visit.status === "completed") {
     return (

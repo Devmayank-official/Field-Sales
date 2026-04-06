@@ -145,41 +145,16 @@ export function ClientForm({ initialData, onSuccess }: ClientFormProps) {
   };
 
   const handleContactImport = async () => {
-    try {
-      if (Capacitor.isNativePlatform()) {
-        const { Contacts } = await import("@capacitor-community/contacts");
-
-        // Check current permission state first to avoid redundant prompts
-        let permState = "prompt";
-        try {
-          const check = await Contacts.checkPermissions();
-          permState = check.contacts;
-        } catch {
-          // checkPermissions may not exist on older versions — fall through to request
-        }
-
-        if (permState !== "granted") {
-          const result = await Contacts.requestPermissions();
-          permState = result.contacts;
-        }
-
-        if (permState !== "granted") {
-          toast({ title: "Contacts permission denied", variant: "destructive" });
-          return;
-        }
-
-        // Open sheet first, then load contacts inside it
-        setPickerContacts([]);
-        setPickerError(null);
-        setPickerOpen(true);
-        // Small delay on first grant — Android content provider needs a moment
-        await new Promise((r) => setTimeout(r, 150));
-        await loadNativeContacts();
-      } else {
-        if (!("contacts" in navigator)) {
-          toast({ title: "Contact picker not supported on this browser", variant: "destructive" });
-          return;
-        }
+    if (!Capacitor.isNativePlatform()) {
+      // On web, try the Contact Picker API (Chrome Android only); otherwise inform the user
+      if (!("contacts" in navigator)) {
+        toast({
+          title: "Native app only",
+          description: "Contact import is available in the Android/iOS app. Fill in the fields manually here.",
+        });
+        return;
+      }
+      try {
         const contacts = await (navigator as any).contacts.select(
           ["name", "tel", "email"],
           { multiple: false }
@@ -190,10 +165,57 @@ export function ClientForm({ initialData, onSuccess }: ClientFormProps) {
         if (c.tel?.[0]) form.setValue("phone", c.tel[0]);
         if (c.email?.[0]) form.setValue("email", c.email[0]);
         toast({ title: "Contact imported" });
+      } catch (e) {
+        toast({
+          title: "Native app only",
+          description: "Contact import is available in the Android/iOS app. Fill in the fields manually here.",
+        });
       }
+      return;
+    }
+
+    // Native platform path
+    try {
+      const { Contacts } = await import("@capacitor-community/contacts");
+
+      // Check current permission state first to avoid redundant prompts
+      let permState = "prompt";
+      try {
+        const check = await Contacts.checkPermissions();
+        permState = check.contacts;
+      } catch {
+        // checkPermissions may not exist on older versions — fall through to request
+      }
+
+      if (permState !== "granted") {
+        const result = await Contacts.requestPermissions();
+        permState = result.contacts;
+      }
+
+      if (permState !== "granted") {
+        toast({
+          title: "Contacts permission denied",
+          description: "Please allow contacts access in your device settings to use this feature.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Open sheet first, then load contacts inside it
+      setPickerContacts([]);
+      setPickerError(null);
+      setPickerOpen(true);
+      // Small delay on first grant — Android content provider needs a moment
+      await new Promise((r) => setTimeout(r, 150));
+      await loadNativeContacts();
     } catch (e) {
       setPickerLoading(false);
-      toast({ title: "Could not open contacts", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({
+        title: "Could not access contacts",
+        description: msg,
+        variant: "destructive",
+      });
     }
   };
 
