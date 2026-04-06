@@ -1,0 +1,17 @@
+packages:
+  "dexie": "IndexedDB wrapper for offline-first local storage"
+  "zustand": "Lightweight global state management for UI states"
+  "uuid": "Generating unique IDs locally"
+  "@types/uuid": "TypeScript definitions for uuid"
+  "date-fns": "Formatting dates and tracking visit durations"
+  "react-hook-form": "Form handling"
+  "@hookform/resolvers": "Zod integration for forms"
+  "zod": "Schema validation for local entities"
+  "framer-motion": "Smooth page transitions and micro-interactions"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility for merging tailwind classes without style conflicts"
+
+notes:
+  - This is a 100% offline-first application. No backend or external API is used.
+  - All data is stored in the browser using Dexie.js (IndexedDB).
+  - TanStack Query is used to orchestrate cache reads/writes from the local Dexie DB.

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FieldSales adaptive icon foreground: white "F" lettermark, transparent 108dp canvas -->
+<!-- Safe zone = center 72dp square (18dp inset each side) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Bold "F" centred within the 72dp safe zone (inset 18dp each side → x:18–90, y:18–90) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,22 L80,22 L80,34 L40,34 L40,50 L74,50 L74,62 L40,62 L40,86 L28,86 Z" />
+</vector>
