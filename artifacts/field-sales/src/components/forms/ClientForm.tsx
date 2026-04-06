@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ColorLabelPicker } from "@/components/ui/color-label-picker";
 import { useCreateClient, useUpdateClient, useClients } from "@/hooks/useClients";
 import { useToast } from "@/hooks/use-toast";
-import { ContactRound, AlertTriangle, Search, User } from "lucide-react";
+import { ContactRound, AlertTriangle, Search, User, RefreshCw } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import type { ColorLabel } from "@/lib/schema";
 import { haptic } from "@/lib/native/haptics";
@@ -47,6 +47,7 @@ export function ClientForm({ initialData, onSuccess }: ClientFormProps) {
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerContacts, setPickerContacts] = useState<ContactItem[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
 
   const form = useForm<InsertClient>({
     resolver: zodResolver(insertClientSchema),
@@ -109,31 +110,71 @@ export function ClientForm({ initialData, onSuccess }: ClientFormProps) {
     toast({ title: "Contact imported" });
   };
 
+  const loadNativeContacts = async () => {
+    const { Contacts } = await import("@capacitor-community/contacts");
+    setPickerLoading(true);
+    setPickerError(null);
+    try {
+      const result = await Contacts.getContacts({
+        projection: { name: true, phones: true, emails: true },
+      });
+      const contacts = result.contacts ?? [];
+      const mapped: ContactItem[] = contacts
+        .filter((c) => {
+          const hasName = !!(c.name?.display || c.name?.given || c.name?.family);
+          const hasPhone = !!(c.phones?.[0]?.number);
+          return hasName || hasPhone;
+        })
+        .map((c, i) => {
+          const nameParts = [c.name?.given, c.name?.family].filter(Boolean).join(" ");
+          return {
+            id: c.contactId ?? String(i),
+            displayName: c.name?.display || nameParts || c.phones?.[0]?.number || "Unknown",
+            phone: c.phones?.[0]?.number ?? "",
+            email: c.emails?.[0]?.address ?? "",
+          };
+        })
+        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+      setPickerContacts(mapped);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setPickerError(msg);
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
   const handleContactImport = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
         const { Contacts } = await import("@capacitor-community/contacts");
-        const permission = await Contacts.requestPermissions();
-        if (permission.contacts !== "granted") {
+
+        // Check current permission state first to avoid redundant prompts
+        let permState = "prompt";
+        try {
+          const check = await Contacts.checkPermissions();
+          permState = check.contacts;
+        } catch {
+          // checkPermissions may not exist on older versions — fall through to request
+        }
+
+        if (permState !== "granted") {
+          const result = await Contacts.requestPermissions();
+          permState = result.contacts;
+        }
+
+        if (permState !== "granted") {
           toast({ title: "Contacts permission denied", variant: "destructive" });
           return;
         }
-        setPickerLoading(true);
+
+        // Open sheet first, then load contacts inside it
+        setPickerContacts([]);
+        setPickerError(null);
         setPickerOpen(true);
-        const result = await Contacts.getContacts({
-          projection: { name: true, phones: true, emails: true },
-        });
-        const mapped: ContactItem[] = (result.contacts ?? [])
-          .filter((c) => c.name?.display || c.name?.given)
-          .map((c, i) => ({
-            id: c.contactId ?? String(i),
-            displayName: c.name?.display ?? [c.name?.given, c.name?.family].filter(Boolean).join(" "),
-            phone: c.phones?.[0]?.number ?? "",
-            email: c.emails?.[0]?.address ?? "",
-          }))
-          .sort((a, b) => a.displayName.localeCompare(b.displayName));
-        setPickerContacts(mapped);
-        setPickerLoading(false);
+        // Small delay on first grant — Android content provider needs a moment
+        await new Promise((r) => setTimeout(r, 150));
+        await loadNativeContacts();
       } else {
         if (!("contacts" in navigator)) {
           toast({ title: "Contact picker not supported on this browser", variant: "destructive" });
@@ -150,10 +191,9 @@ export function ClientForm({ initialData, onSuccess }: ClientFormProps) {
         if (c.email?.[0]) form.setValue("email", c.email[0]);
         toast({ title: "Contact imported" });
       }
-    } catch {
+    } catch (e) {
       setPickerLoading(false);
-      setPickerOpen(false);
-      toast({ title: "Could not access contacts", variant: "destructive" });
+      toast({ title: "Could not open contacts", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     }
   };
 
@@ -438,29 +478,47 @@ export function ClientForm({ initialData, onSuccess }: ClientFormProps) {
       </Form>
 
       {/* Native Contact Picker Sheet */}
-      <Sheet open={pickerOpen} onOpenChange={(v) => { setPickerOpen(v); if (!v) setPickerSearch(""); }}>
+      <Sheet open={pickerOpen} onOpenChange={(v) => { setPickerOpen(v); if (!v) { setPickerSearch(""); setPickerError(null); } }}>
         <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl flex flex-col p-0">
           <SheetHeader className="px-6 pt-6 pb-4 shrink-0">
             <SheetTitle>Choose a Contact</SheetTitle>
             <SheetDescription>Select a contact to pre-fill the form.</SheetDescription>
           </SheetHeader>
 
-          <div className="px-6 pb-3 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, phone or email…"
-                value={pickerSearch}
-                onChange={(e) => setPickerSearch(e.target.value)}
-                className="pl-9"
-                autoFocus={false}
-              />
+          {!pickerLoading && !pickerError && (
+            <div className="px-6 pb-3 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, phone or email…"
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                  className="pl-9"
+                  autoFocus={false}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {pickerLoading ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <div className="w-7 h-7 border-[3px] border-primary/25 border-t-primary rounded-full animate-spin" />
+              <p className="text-sm text-muted-foreground">Loading contacts…</p>
+            </div>
+          ) : pickerError ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 pb-8">
+              <AlertTriangle className="w-10 h-10 text-destructive/60" />
+              <p className="text-sm font-medium text-center">Could not load contacts</p>
+              <p className="text-xs text-muted-foreground text-center break-all">{pickerError}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 mt-2"
+                onClick={loadNativeContacts}
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </Button>
             </div>
           ) : filteredContacts.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground pb-8">

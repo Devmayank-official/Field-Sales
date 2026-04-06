@@ -1,8 +1,22 @@
 import { db } from "./db/dexieDb";
 import type { Client, Fridge, Visit, Reminder } from "@/lib/schema";
+import { Capacitor } from "@capacitor/core";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
 const LAST_SYNC_KEY = "field_sales_last_sync_at";
+
+function isNetworkError(e: unknown): boolean {
+  const msg = String(e).toLowerCase();
+  return (
+    msg.includes("failed to fetch") ||
+    msg.includes("networkerror") ||
+    msg.includes("net::err") ||
+    msg.includes("load failed") ||
+    msg.includes("econnrefused") ||
+    msg.includes("connection refused") ||
+    msg.includes("fetch") && msg.includes("error")
+  );
+}
 
 export type SyncResult = {
   pushed: number;
@@ -101,12 +115,21 @@ async function pullSince(since: number): Promise<number> {
 export async function runSync(): Promise<SyncResult> {
   if (!navigator.onLine) return { pushed: 0, pulled: 0, error: "offline" };
 
+  // On native, skip sync entirely when no backend URL has been configured
+  if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
+    return { pushed: 0, pulled: 0 };
+  }
+
   try {
     const pushed = await pushDirty();
     const since = getLastSyncAt();
     const pulled = await pullSince(since);
     return { pushed, pulled };
   } catch (e) {
+    // Network-level failures (no server, no internet) = treat as offline, not error
+    if (isNetworkError(e)) {
+      return { pushed: 0, pulled: 0, error: "offline" };
+    }
     return { pushed: 0, pulled: 0, error: String(e) };
   }
 }
