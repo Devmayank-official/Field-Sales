@@ -549,7 +549,7 @@ It covers all 20 steps from Java JDK installation through to a signed Release AA
 | Minimum SDK | API 29 (Android 10.0) |
 | Target SDK | API 35 (Android 15.0) |
 | Compile SDK | API 35 (Android 15.0) |
-| App ID | `com.fieldsales.app` |
+| App ID | `com.dmllabs.fieldsales` |
 | Java | 17 (LTS) |
 
 ---
@@ -633,4 +633,13 @@ This project is deployed on Replit with automatic HTTPS and environment isolatio
 
 ---
 
-*Built with Capacitor 8, React 19, Drizzle ORM, and PostgreSQL.*
+## Credits
+
+| Role | Details |
+|---|---|
+| **Developed by** | [DML Labs](https://github.com/Devmayank-official) |
+| **Lead Engineer** | [@Devmayank-official](https://github.com/Devmayank-official) |
+
+---
+
+*Built with Capacitor 8, React 19, Drizzle ORM, and PostgreSQL. &copy; DML Labs.*

@@ -4,7 +4,7 @@
 > **Target:** Debug APK for testing + Release AAB for Google Play  
 > **Environment:** Linux (NixOS/Ubuntu/Debian) — no Android Studio required  
 > **Capacitor version:** 8.x  
-> **App ID:** `com.fieldsales.app`
+> **App ID:** `com.dmllabs.fieldsales`
 
 ---
 
@@ -488,7 +488,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 # -r = replace existing installation
 
 # Launch the app directly
-adb shell am start -n com.fieldsales.app/.MainActivity
+adb shell am start -n com.dmllabs.fieldsales/.MainActivity
 ```
 
 ### Watch live logs from the app:
@@ -710,7 +710,7 @@ adb devices
 ### `INSTALL_FAILED_UPDATE_INCOMPATIBLE`
 ```bash
 # Uninstall the existing app first (different signature)
-adb uninstall com.fieldsales.app
+adb uninstall com.dmllabs.fieldsales
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
@@ -756,3 +756,12 @@ adb logcat -s chromium        # JS console logs
 # ── Clean build ──────────────────────────────────
 ./gradlew clean assembleDebug
 ```
+
+---
+
+## Credits
+
+| Role | Details |
+|---|---|
+| **Developed by** | [DML Labs](https://github.com/Devmayank-official) |
+| **Lead Engineer** | [@Devmayank-official](https://github.com/Devmayank-official) |

@@ -124,7 +124,7 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 - Local notifications for reminders — OS-level on native, setTimeout on web
 
 **Capacitor Integration (Phase 0 + Phase 1 complete):**
-- `capacitor.config.ts` — app config (appId: com.fieldsales.app, webDir: dist/public)
+- `capacitor.config.ts` — app config (appId: com.dmllabs.fieldsales, webDir: dist/public)
 - Build scripts: `pnpm build:native`, `pnpm sync:ios`, `pnpm sync:android`
 - Abstraction layer in `src/lib/native/` — all native plugins with web fallbacks:
   - `haptics.ts` — @capacitor/haptics (replaces lib/haptic.ts; iOS finally vibrates)
