@@ -207,7 +207,7 @@ export default function Settings() {
   const rescheduleAllReminders = async () => {
     const granted = await requestNotificationPermission();
     if (!granted) { toast({ title: "Notifications not permitted", variant: "destructive" }); return; }
-    const pending = await db.reminders.where("isCompleted").equals(0 as unknown as boolean).toArray();
+    const pending = await db.reminders.filter((r) => !r.isCompleted).toArray();
     let scheduled = 0;
     for (const r of pending) {
       if (r.dueAt > Date.now()) {

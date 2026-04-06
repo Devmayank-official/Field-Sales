@@ -218,6 +218,9 @@ importers:
 
   artifacts/field-sales:
     dependencies:
+      '@capacitor-community/contacts':
+        specifier: ^7.1.0
+        version: 7.1.0(@capacitor/core@8.3.0)
       '@capacitor-mlkit/barcode-scanning':
         specifier: ^8.0.1
         version: 8.0.1(@capacitor/core@8.3.0)
@@ -1251,6 +1254,11 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@capacitor-community/contacts@7.1.0':
+    resolution: {integrity: sha512-Q1a9UP/5/XaWVMlA7Vtcsj+w488UieJJYEU0DoZaWMn/g5ltvQ3WuWL3nZMZGexqwwSTsPPYVWvhYbYqJ5xFPQ==}
+    peerDependencies:
+      '@capacitor/core': '>=7.0.0'
 
   '@capacitor-mlkit/barcode-scanning@8.0.1':
     resolution: {integrity: sha512-94SyxzbcQ2HBd7yxS34dqc0PzwdOw8/98xBrjw1ioznE/Ksky/iwsip5Bm8P8Qg+dgnJYWz7NcIPjd+6bLjVoQ==}
@@ -5441,6 +5449,10 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@capacitor-community/contacts@7.1.0(@capacitor/core@8.3.0)':
+    dependencies:
+      '@capacitor/core': 8.3.0
 
   '@capacitor-mlkit/barcode-scanning@8.0.1(@capacitor/core@8.3.0)':
     dependencies:
