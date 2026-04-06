@@ -7,6 +7,7 @@ import { useState } from "react";
 import { seedDatabase } from "@/services/db/dexieDb";
 import { useUiStore } from "@/store/uiStore";
 import { Capacitor } from "@capacitor/core";
+import { ShoppingBag } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
 import Dashboard from "@/pages/dashboard";
@@ -117,8 +118,20 @@ function App() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-8 select-none">
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-20 h-20 rounded-3xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/40">
+            <ShoppingBag className="w-10 h-10 text-white" />
+          </div>
+          <div className="text-center space-y-1">
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">FieldSales</h1>
+            <p className="text-sm text-muted-foreground font-medium">Field Sales &amp; Asset Intelligence</p>
+          </div>
+        </div>
+        <div className="w-8 h-8 border-[3px] border-primary/25 border-t-primary rounded-full animate-spin" />
+        <p className="absolute bottom-10 text-[11px] text-muted-foreground/60 tracking-widest uppercase">
+          by DML Labs
+        </p>
       </div>
     );
   }

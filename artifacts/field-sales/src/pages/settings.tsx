@@ -866,11 +866,81 @@ export default function Settings() {
         </div>
       )}
 
-      <p className="text-center text-xs text-muted-foreground pt-4 pb-4">
-        Field Sales App · v{__APP_VERSION__} ({__GIT_SHA__})
-        <br />
-        Offline-First · Data stays on your device
-      </p>
+      {/* ── ABOUT ─────────────────────────────────────── */}
+      <div className="space-y-3 pb-2">
+        <h3 className="font-bold flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4" /> About
+        </h3>
+        <Card className="border-border bg-card overflow-hidden">
+          <CardContent className="p-0">
+            {/* App identity */}
+            <div className="flex items-center gap-4 p-4 border-b border-border">
+              <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/25">
+                <span className="text-white font-extrabold text-lg tracking-tight">FS</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-base">FieldSales</p>
+                <p className="text-xs text-muted-foreground">Field Sales &amp; Asset Intelligence</p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-[10px] font-mono bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                    v{__APP_VERSION__} ({__GIT_SHA__})
+                  </span>
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+                    Offline Ready
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Developer */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">Developed by</p>
+                <p className="font-semibold text-sm">DML Labs</p>
+              </div>
+              <button
+                onClick={() => void copyToClipboard("https://github.com/Devmayank-official")}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted hover:bg-muted/70 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <Copy className="w-3 h-3" />
+                @Devmayank-official
+              </button>
+            </div>
+
+            {/* App ID */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">App ID</p>
+                <p className="font-mono text-xs text-foreground">com.dmllabs.fieldsales</p>
+              </div>
+              <button
+                onClick={() => void copyToClipboard("com.dmllabs.fieldsales")}
+                className="text-muted-foreground hover:text-foreground transition-colors p-2"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Platform row */}
+            <div className="grid grid-cols-3 divide-x divide-border">
+              {[
+                { label: "Platform", val: Capacitor.getPlatform() },
+                { label: "Build", val: import.meta.env.MODE },
+                { label: "Native", val: Capacitor.isNativePlatform() ? "Yes" : "Web" },
+              ].map(({ label, val }) => (
+                <div key={label} className="flex flex-col items-center py-3 gap-0.5">
+                  <span className="text-sm font-semibold capitalize">{val}</span>
+                  <span className="text-[10px] text-muted-foreground">{label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-[11px] text-muted-foreground/50 tracking-widest uppercase pb-2">
+          © {new Date().getFullYear()} DML Labs · All rights reserved
+        </p>
+      </div>
 
       {/* Hidden file inputs */}
       <input ref={importJsonRef} type="file" accept=".json" className="hidden" onChange={handleImportJson} />

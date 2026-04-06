@@ -148,7 +148,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
                 <Store className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="font-bold text-base tracking-tight">FieldSales</span>
+              <div className="flex flex-col leading-none gap-0.5">
+                <span className="font-bold text-base tracking-tight">FieldSales</span>
+                <span className="text-[9px] text-muted-foreground tracking-widest uppercase">by DML Labs</span>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {/* Sync status */}
