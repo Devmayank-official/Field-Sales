@@ -37,9 +37,9 @@
 
 | Tool | Required Version | Purpose |
 |---|---|---|
-| Java JDK | 17 (LTS) | Gradle and Android build system |
+| Java JDK | **21 (LTS)** | Gradle and Android build system |
 | Android Command Line Tools | Latest (12.0+) | SDK manager, no Android Studio |
-| Android SDK Platform | API 35 (Android 15) | Compile target |
+| Android SDK Platform | API 36 (Android 16) | Compile target |
 | Android Build Tools | 35.0.0 | APK/AAB assembler |
 | Android Platform Tools | Latest | ADB for device install |
 | Node.js | 20+ (already on Replit: 24) | Capacitor CLI |
@@ -47,18 +47,22 @@
 
 ---
 
-## 2. Install Java JDK 17
+## 2. Install Java JDK 21
+
+> **Why JDK 21?** The `@capacitor/filesystem` plugin (and several other Capacitor plugins at v8.x)
+> set `sourceCompatibility = JavaVersion.VERSION_21` in their Gradle config. Building with JDK 17
+> will fail with "Cannot find a Java installation matching languageVersion=21".
 
 ### Option A — Replit / NixOS (recommended for this environment)
 
-Edit `replit.nix` in the project root to add JDK and ADB:
+Edit `replit.nix` in the project root to add JDK 21 and ADB:
 
 ```nix
 { pkgs }: {
   deps = [
     pkgs.nodejs_20
     pkgs.nodePackages.pnpm
-    pkgs.jdk17
+    pkgs.jdk21
     pkgs.android-tools
   ];
 }
@@ -69,34 +73,34 @@ After saving, Replit reloads the environment automatically.
 Verify:
 ```bash
 java -version
-# Expected: openjdk version "17.x.x"
+# Expected: openjdk version "21.x.x"
 
 javac -version
-# Expected: javac 17.x.x
+# Expected: javac 21.x.x
 ```
 
 ### Option B — Ubuntu / Debian (standard Linux server)
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y openjdk-17-jdk openjdk-17-jre
+sudo apt-get install -y openjdk-21-jdk openjdk-21-jre
 
 # Set JAVA_HOME
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 java -version
 ```
 
 ### Option C — Any Linux (manual download)
 
 ```bash
-# Download JDK 17 from Adoptium
-curl -L https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz \
-  -o /tmp/jdk17.tar.gz
+# Download JDK 21 from Adoptium
+curl -L https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_x64_linux_hotspot_21.0.5_11.tar.gz \
+  -o /tmp/jdk21.tar.gz
 
-mkdir -p ~/jdk17
-tar -xzf /tmp/jdk17.tar.gz -C ~/jdk17 --strip-components=1
+mkdir -p ~/jdk21
+tar -xzf /tmp/jdk21.tar.gz -C ~/jdk21 --strip-components=1
 
-export JAVA_HOME=~/jdk17
+export JAVA_HOME=~/jdk21
 export PATH=$JAVA_HOME/bin:$PATH
 
 java -version
@@ -202,8 +206,8 @@ platforms;android-35
 Run this before proceeding. Every line must succeed:
 
 ```bash
-java -version           # OpenJDK 17
-javac -version          # javac 17
+java -version           # OpenJDK 21
+javac -version          # javac 21
 sdkmanager --version    # 12.0 or higher
 adb version             # Android Debug Bridge 35.x
 echo $ANDROID_HOME      # non-empty path
@@ -348,8 +352,22 @@ org.gradle.caching=true
 
 # Android build settings
 android.useAndroidX=true
-android.enableJetifier=true
+
+# JDK 21 toolchain — required for @capacitor/filesystem v8.x and other plugins
+# Replace the hash with the actual NixOS JDK 21 path (find it with: readlink -f $(which java))
+org.gradle.java.home=/nix/store/<hash>-openjdk-21.0.7+6/lib/openjdk
+org.gradle.java.installations.paths=/nix/store/<hash>-openjdk-21.0.7+6/lib/openjdk
+org.gradle.java.installations.auto-detect=true
+org.gradle.java.installations.auto-download=false
 ```
+
+> **On NixOS/Replit:** JDK paths contain an opaque hash that changes between installs.
+> Run this to auto-write the correct path:
+> ```bash
+> JAVA21=$(dirname $(dirname $(readlink -f $(which java))))
+> echo "org.gradle.java.home=${JAVA21}" >> android/gradle.properties
+> echo "org.gradle.java.installations.paths=${JAVA21}" >> android/gradle.properties
+> ```
 
 ---
 
@@ -403,14 +421,21 @@ Create `android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`:
 </adaptive-icon>
 ```
 
-Create `android/app/src/main/res/values/ic_launcher_background.xml`:
+Add the `ic_launcher_background` color to `android/app/src/main/res/values/colors.xml`:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="colorPrimary">#F40009</color>
+    <color name="colorPrimaryDark">#B30006</color>
+    <color name="colorAccent">#FF1744</color>
     <color name="ic_launcher_background">#F40009</color>
 </resources>
 ```
+
+> **Important:** Do NOT create a separate `ic_launcher_background.xml` file — it will conflict with
+> `colors.xml` and cause a "Duplicate resources" build error. Define `ic_launcher_background` directly
+> in `colors.xml` only.
 
 ---
 
@@ -687,9 +712,41 @@ ls ~/android-sdk/cmdline-tools/latest/bin/sdkmanager
 
 ### `Java version mismatch` / `Unsupported class file major version`
 ```bash
-# Ensure JAVA_HOME points to JDK 17, not 8 or 11
+# Ensure JAVA_HOME points to JDK 21
 java -version
 export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+```
+
+### `Cannot find a Java installation matching languageVersion=21`
+This happens when `@capacitor/filesystem` or other plugins require JDK 21 but JDK 17 is installed.
+
+```bash
+# Install JDK 21 (Replit/NixOS)
+# Edit replit.nix to use pkgs.jdk21 then let Replit reload
+
+# After installing, add the JDK path to gradle.properties
+JAVA21=$(dirname $(dirname $(readlink -f $(which java))))
+echo "org.gradle.java.home=${JAVA21}" >> android/gradle.properties
+echo "org.gradle.java.installations.paths=${JAVA21}" >> android/gradle.properties
+echo "org.gradle.java.installations.auto-detect=true" >> android/gradle.properties
+echo "org.gradle.java.installations.auto-download=false" >> android/gradle.properties
+
+# Clean and rebuild
+./gradlew clean assembleDebug
+```
+
+### `Duplicate resources` — `splash.png` and `splash.xml` conflict
+Capacitor generates `drawable/splash.xml`; if `drawable/splash.png` also exists, the merger fails.
+```bash
+# Remove the PNG — keep only the XML version
+rm android/app/src/main/res/drawable/splash.png
+```
+
+### `Duplicate resources` — `ic_launcher_background` defined twice
+This happens if both `values/colors.xml` and `values/ic_launcher_background.xml` exist.
+```bash
+# Remove the separate file — define the color only in colors.xml
+rm android/app/src/main/res/values/ic_launcher_background.xml
 ```
 
 ### `Gradle build fails: AAPT2 error`

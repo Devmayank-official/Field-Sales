@@ -154,13 +154,36 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 - **fridge-detail:** Serial number copy icon; QR copy upgraded to native clipboard
 - **active-visit:** Share Summary button on completed visit screen
 
-**To build native (requires Mac/Xcode for iOS, Android Studio for Android):**
+**Android native build (CLI only — no Android Studio required):**
+- **Java JDK 21** required (capacitor-filesystem v8.x needs `languageVersion=21`)
+- Android SDK at `~/android-sdk/` with `platform-tools`, `platforms;android-36`, `build-tools;35.0.0`
+- `gradle.properties` has `org.gradle.java.home` set to NixOS JDK 21 path
+- **Debug APK built successfully:** `android/app/build/outputs/apk/debug/app-debug.apk` (44 MB)
+- App ID: `com.dmllabs.fieldsales` | minSdk: 29 | targetSdk: 36 | signed with v2 scheme
+
 ```bash
-cd Sales-Management/artifacts/field-sales
+# Full rebuild cycle from workspace root
+export ANDROID_HOME=$HOME/android-sdk
+export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/35.0.0:$JAVA_HOME/bin:$PATH
+
+cd artifacts/field-sales
+pnpm sync:android           # build web assets + capacitor sync
+
+cd android
+./gradlew assembleDebug     # ~2-3 min (subsequent builds)
+# Output: app/build/outputs/apk/debug/app-debug.apk
+
+# Install on device via ADB
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+See `ANDROID_BUILD.md` for full setup guide, icon/splash setup, release signing, and troubleshooting.
+
+```bash
+# iOS (still requires Mac + Xcode)
 pnpm sync:ios      # builds + syncs to Xcode project
-pnpm sync:android  # builds + syncs to Android Studio project
 pnpm open:ios      # opens Xcode
-pnpm open:android  # opens Android Studio
 ```
 
 **Key files:**
